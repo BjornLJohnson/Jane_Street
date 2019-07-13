@@ -50,10 +50,12 @@ def hello():
 def sell(symbol, price, size):
     order_id = random.randint(1000, 5000000)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "SELL", "price": price, "size": size})
+    orders.append(order_id)
 
 def buy(symbol, price, size):
     order_id = random.randint(1000, 5000000)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
+    orders.append(order_id)
 
 def convert(exchange, order_id, symbol, size):
     write_to_exchange(exchange, {"type": "convert", "order_id": order_id, "symbol": symbol, "dir": "BUY", "size": size})
@@ -83,13 +85,12 @@ def penny(buy_dict, sell_dict, orders):
         buy(bond, buy_dict[bond] + 1, 1)
         print("ORDERED")
         if not read_from_exchange(exchange)["type"] == "reject":
-            orders.append(order_id)
 
     for bond in sell_dict.keys():
         sell(bond, sell_dict[bond] - 1, 1)
         print("SOLD")
         if not read_from_exchange(exchange)["type"] == "reject":
-            orders.append(order_id)
+            
 
 def get_fair_price(symbol, high, low):
     return (high+low)/2
