@@ -11,6 +11,7 @@ import sys
 import socket
 import json
 import random
+import time
 
 # ~~~~~============== CONFIGURATION  ==============~~~~~
 # replace REPLACEME with your team name!
@@ -23,7 +24,7 @@ test_mode = True
 # 0 is prod-like
 # 1 is slower
 # 2 is empty
-test_exchange_index=1
+test_exchange_index=0
 prod_exchange_hostname="production"
 
 port=25000 + (test_exchange_index if test_mode else 0)
@@ -33,7 +34,6 @@ exchange_hostname = "test-exch-" + team_name if test_mode else prod_exchange_hos
 def connect():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((exchange_hostname, port))
-    s.settimeout(1)
     return s.makefile('rw', 1)
 
 def write_to_exchange(exchange, obj):
@@ -43,40 +43,20 @@ def write_to_exchange(exchange, obj):
 def read_from_exchange(exchange):
     return json.loads(exchange.readline())
 
-# ~~~~~============== PARAMETERS ==============~~~~~
-exchange = connect()
-
-increment = 1
-decrement = 1
-
-# ~~~~~============== BOT FUNCTIONS ==============~~~~~
-def hello():
+def hello(exchange):
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
-    order_id = random.randint(1000, 5000000)
+
+def buy(exchange, order_id, symbol, price, size):
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
 
-def sell(symbol, price, size):
-    order_id = random.randint(1000, 5000000)
+def sell(exchange, order_id, symbol, price, size):
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "SELL", "price": price, "size": size})
 
-def buy(symbol, price, size):
-    order_id = random.randint(1000, 5000000)
-    write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
-
-def convert(order_id, symbol, size):
+def convert(exchange, order_id, symbol, size):
     write_to_exchange(exchange, {"type": "convert", "order_id": order_id, "symbol": symbol, "dir": "BUY", "size": size})
 
-def cancel(order_id):
+def cancel(exchange, order_id):
     write_to_exchange(exchange, {"type": "cancel", "order_id": order_id})
-
-def penny_buy(symbol, high, quantity):
-    buy(symbol, high+increment, quantity)
-
-def penny_sell(symbol, low, quantity):
-    buy(symbol, low-decrement, quantity)
-
-def get_fair_price(symbol, high, low):
-    return (high+low)/2
 
 def get_info(exchange, buy_dict, sell_dict):
     from_exchange = read_from_exchange(exchange)
@@ -93,50 +73,43 @@ def get_info(exchange, buy_dict, sell_dict):
             lowest_offer = from_exchange["sell"][0][0]
             sell_dict[security] = lowest_offer
 
+def penny(exchange, buy_dict, sell_dict, orders):
+    for bond in buy_dict.keys():
+        order_id = random.randint(1000, 100000)
+        buy(exchange, order_id, bond, buy_dict[bond] + 1, 1)
+        print("ORDERED")
+        if not read_from_exchange(exchange)["type"] == "reject":
+            orders.append(order_id)
+
+    for bond in sell_dict.keys():
+        order_id = random.randint(1000, 100000)
+        sell(exchange, order_id, bond, sell_dict[bond] - 1, 1)
+        print("SOLD")
+        if not read_from_exchange(exchange)["type"] == "reject":
+            orders.append(order_id)
+
 # ~~~~~============== MAIN LOOP ==============~~~~~
 
 def main():
     exchange = connect()
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
     hello_from_exchange = read_from_exchange(exchange)
-    # A common mistake people make is to call write_to_exchange() > 1
-    # time for every read_from_exchange() response.
-    # Since many write messages generate marketdata, this will cause an
-    # exponential explosion in pending messages. Please, don't do that!
     print("The exchange replied:", hello_from_exchange, file=sys.stderr)
-
-    count = 0
+    
     sell_dict = {}
     buy_dict = {}
 
-    while True:
-        
-        # Auto Reconnecting and Bond Bot
-        if count%500==0 :
-            buy("BOND", 999, 1)
-            sell("BOND", 1001, 1)
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-            print("ordered")
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        count+=1
-        
-        # Parsing Messages
+    orders = []
+    while(True):
         get_info(exchange, buy_dict, sell_dict)
-        print("                             SELL DICT: ", sell_dict)
-        print("                             BUY_DICT: ", buy_dict)
 
-        # Printing Message info
-        response = read_from_exchange(exchange)
-        messageType = response["type"]
-        print(messageType)
-        if messageType=="ack" or messageType=="error" :
-            print(messageType,response, file=sys.stderr)
-        
-        # for symbol in sym_list :
-        #     fair = get_fair_price(symbol, high, low)
-        #     if fair>prev_fair :
-        #         penny_buy(symbol, )
-        #     elif
+        penny(exchange, buy_dict, sell_dict, orders)
+        time.sleep(5)
+
+        # A common mistake people make is to call write_to_exchange() > 1
+        # time for every read_from_exchange() response.
+        # Since many write messages generate marketdata, this will cause an
+        # exponential explosion in pending messages. Please, don't do that!
 
 if __name__ == "__main__":
     main()
