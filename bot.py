@@ -23,7 +23,7 @@ test_mode = True
 # 0 is prod-like
 # 1 is slower
 # 2 is empty
-test_exchange_index=2
+test_exchange_index=1
 prod_exchange_hostname="production"
 
 port=25000 + (test_exchange_index if test_mode else 0)
@@ -51,14 +51,16 @@ decrement = 1
 # ~~~~~============== BOT FUNCTIONS ==============~~~~~
 def hello():
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
-
-def buy(symbol, price, size):
     order_id = random.randint(1000, 5000000)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
 
 def sell(symbol, price, size):
     order_id = random.randint(1000, 5000000)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "SELL", "price": price, "size": size})
+
+def buy(symbol, price, size):
+    order_id = random.randint(1000, 5000000)
+    write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
 
 def convert(order_id, symbol, size):
     write_to_exchange(exchange, {"type": "convert", "order_id": order_id, "symbol": symbol, "dir": "BUY", "size": size})
@@ -87,10 +89,11 @@ def main():
     # exponential explosion in pending messages. Please, don't do that!
     print("The exchange replied:", hello_from_exchange, file=sys.stderr)
 
+
     while True:
         buy("BOND", 999, 1)
         sell("BOND", 1001, 1)
-
+        print(read_from_exchange(exchange), file=sys.stderr)
         # for symbol in sym_list :
         #     fair = get_fair_price(symbol, high, low)
         #     if fair>prev_fair :
