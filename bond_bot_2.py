@@ -77,6 +77,19 @@ def penny_sell(symbol, low, quantity):
 def get_fair_price(symbol, high, low):
     return (high+low)/2
 
+def get_info(exchange, buy_dict, sell_dict):
+    from_exchange = read_from_exchange(exchange)
+    
+    highest_bid = 9999999999
+    lowest_offer = -9999999999
+    if from_exchange["type"] == "book":
+        security = from_exchange["symbol"]
+        security = from_exchange["symbol"]
+        highest_bid = from_exchange["buy"][0][0]
+        lowest_offer = from_exchange["sell"][0][0]
+        buy_dict[security] = highest_bid
+        sell_dict[security] = lowest_offer
+
 # ~~~~~============== MAIN LOOP ==============~~~~~
 
 def main():
@@ -93,19 +106,24 @@ def main():
 
     while True:
         
+        # Auto Reconnecting and Bond Bot
         if count%500==0 :
             buy("BOND", 999, 1)
             sell("BOND", 1001, 1)
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
             print("ordered")
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
         count+=1
         
+        # Parsing Messages
+        get_info(exchange, buy_dict, sell_dict)
+        print("                             SELL DICT: ", sell_dict)
+        print("                             BUY_DICT: ", buy_dict)
+
+        # Printing Message info
         response = read_from_exchange(exchange)
         messageType = response["type"]
         print(messageType)
-        
         if messageType=="ack" or messageType=="error" :
             print(messageType,response, file=sys.stderr)
         
