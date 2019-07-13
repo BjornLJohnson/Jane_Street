@@ -3,13 +3,14 @@
 # ~~~~~==============   HOW TO RUN   ==============~~~~~
 # 1) Configure things in CONFIGURATION section
 # 2) Change permissions: chmod +x bot.py
-# 3) Run in loop: init_bot.py && while true; do ./bot.py; sleep 1; done
+# 3) Run in loop: while true; do ./bot.py; sleep 1; done
 
 from __future__ import print_function
 
 import sys
 import socket
 import json
+import random
 
 # ~~~~~============== CONFIGURATION  ==============~~~~~
 # replace REPLACEME with your team name!
@@ -42,23 +43,27 @@ def read_from_exchange(exchange):
     return json.loads(exchange.readline())
 
 # ~~~~~============== PARAMETERS ==============~~~~~
+exchange = connect()
+
 increment = 1
 decrement = 1
 
 # ~~~~~============== BOT FUNCTIONS ==============~~~~~
-def hello(exchange):
+def hello():
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
 
-def buy(exchange, order_id, symbol, price, size):
+def buy(symbol, price, size):
+    order_id = random.randint(1000, 5000000)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
 
-def sell(exchange, order_id, symbol, price, size):
+def sell(symbol, price, size):
+    order_id = random.randint(1000, 5000000)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "SELL", "price": price, "size": size})
 
-def convert(exchange, order_id, symbol, size):
+def convert(order_id, symbol, size):
     write_to_exchange(exchange, {"type": "convert", "order_id": order_id, "symbol": symbol, "dir": "BUY", "size": size})
 
-def cancel(exchange, order_id):
+def cancel(order_id):
     write_to_exchange(exchange, {"type": "cancel", "order_id": order_id})
 
 def penny_buy(symbol, high, quantity):
@@ -73,7 +78,7 @@ def get_fair_price(symbol, high, low):
 # ~~~~~============== MAIN LOOP ==============~~~~~
 
 def main():
-    exchange = connect()
+    
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
     hello_from_exchange = read_from_exchange(exchange)
     # A common mistake people make is to call write_to_exchange() > 1
@@ -82,15 +87,15 @@ def main():
     # exponential explosion in pending messages. Please, don't do that!
     print("The exchange replied:", hello_from_exchange, file=sys.stderr)
 
-    buy(BOND, 999, 1)
-    sell(BOND, 1001, 1)
+    while True:
+        buy("BOND", 999, 1)
+        sell("BOND", 1001, 1)
 
-    # for symbol in sym_list :
-    #     fair = get_fair_price(symbol, high, low)
-    #     if fair>prev_fair :
-    #         penny_buy(symbol, )
-    #     elif
-
+        # for symbol in sym_list :
+        #     fair = get_fair_price(symbol, high, low)
+        #     if fair>prev_fair :
+        #         penny_buy(symbol, )
+        #     elif
 
 if __name__ == "__main__":
     main()
