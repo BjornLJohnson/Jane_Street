@@ -89,10 +89,13 @@ def main():
     # exponential explosion in pending messages. Please, don't do that!
     print("The exchange replied:", hello_from_exchange, file=sys.stderr)
 
+    count = 0
 
     while True:
-        buy("BOND", 999, 1)
-        sell("BOND", 1001, 1)
+        if count%1000 == 0 :
+            buy("BOND", 999, 1)
+            sell("BOND", 1001, 1)
+        count+=1
         print(read_from_exchange(exchange), file=sys.stderr)
         # for symbol in sym_list :
         #     fair = get_fair_price(symbol, high, low)
