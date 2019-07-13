@@ -80,12 +80,13 @@ def main():
     
     sell_dict = {}
     buy_dict = {}
+
+    count = 0
     while(True):
         get_info(exchange, buy_dict, sell_dict)
 
-        print("                             SELL DICT: ", sell_dict)
-        print("                             BUY_DICT: ", buy_dict)
-        
+        if count % 500 == 0:
+            
         # A common mistake people make is to call write_to_exchange() > 1
         # time for every read_from_exchange() response.
         # Since many write messages generate marketdata, this will cause an

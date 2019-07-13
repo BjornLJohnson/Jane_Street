@@ -17,7 +17,7 @@ import random
 team_name="BANANAS"
 # This variable dictates whether or not the bot is connecting to the prod
 # or test exchange. Be careful with this switch!
-test_mode = True
+test_mode = False
 
 # This setting changes which test exchange is connected to.
 # 0 is prod-like
@@ -42,20 +42,40 @@ def write_to_exchange(exchange, obj):
 def read_from_exchange(exchange):
     return json.loads(exchange.readline())
 
-def hello(exchange):
-    write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
+# ~~~~~============== PARAMETERS ==============~~~~~
+exchange = connect()
 
-def buy(exchange, order_id, symbol, price, size):
+increment = 1
+decrement = 1
+
+# ~~~~~============== BOT FUNCTIONS ==============~~~~~
+def hello():
+    write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
+    order_id = random.randint(1000, 5000000)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
 
-def sell(exchange, order_id, symbol, price, size):
+def sell(symbol, price, size):
+    order_id = random.randint(1000, 5000000)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "SELL", "price": price, "size": size})
 
-def convert(exchange, order_id, symbol, size):
+def buy(symbol, price, size):
+    order_id = random.randint(1000, 5000000)
+    write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
+
+def convert(order_id, symbol, size):
     write_to_exchange(exchange, {"type": "convert", "order_id": order_id, "symbol": symbol, "dir": "BUY", "size": size})
 
-def cancel(exchange, order_id):
+def cancel(order_id):
     write_to_exchange(exchange, {"type": "cancel", "order_id": order_id})
+
+def penny_buy(symbol, high, quantity):
+    buy(symbol, high+increment, quantity)
+
+def penny_sell(symbol, low, quantity):
+    buy(symbol, low-decrement, quantity)
+
+def get_fair_price(symbol, high, low):
+    return (high+low)/2
 
 def get_info(exchange, buy_dict, sell_dict):
     from_exchange = read_from_exchange(exchange)
@@ -76,20 +96,44 @@ def main():
     exchange = connect()
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
     hello_from_exchange = read_from_exchange(exchange)
+    # A common mistake people make is to call write_to_exchange() > 1
+    # time for every read_from_exchange() response.
+    # Since many write messages generate marketdata, this will cause an
+    # exponential explosion in pending messages. Please, don't do that!
     print("The exchange replied:", hello_from_exchange, file=sys.stderr)
-    
+
+    count = 0
     sell_dict = {}
     buy_dict = {}
-    while(True):
-        get_info(exchange, buy_dict, sell_dict)
 
+    while True:
+        
+        # Auto Reconnecting and Bond Bot
+        if count%500==0 :
+            buy("BOND", 999, 1)
+            sell("BOND", 1001, 1)
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+            print("ordered")
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        count+=1
+        
+        # Parsing Messages
+        get_info(exchange, buy_dict, sell_dict)
         print("                             SELL DICT: ", sell_dict)
         print("                             BUY_DICT: ", buy_dict)
+
+        # Printing Message info
+        response = read_from_exchange(exchange)
+        messageType = response["type"]
+        print(messageType)
+        if messageType=="ack" or messageType=="error" :
+            print(messageType,response, file=sys.stderr)
         
-        # A common mistake people make is to call write_to_exchange() > 1
-        # time for every read_from_exchange() response.
-        # Since many write messages generate marketdata, this will cause an
-        # exponential explosion in pending messages. Please, don't do that!
+        # for symbol in sym_list :
+        #     fair = get_fair_price(symbol, high, low)
+        #     if fair>prev_fair :
+        #         penny_buy(symbol, )
+        #     elif
 
 if __name__ == "__main__":
     main()
