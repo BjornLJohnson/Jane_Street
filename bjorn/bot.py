@@ -18,7 +18,7 @@ import time
 team_name="BANANAS"
 # This variable dictates whether or not the bot is connecting to the prod
 # or test exchange. Be careful with this switch!
-test_mode = False
+test_mode = True
 
 # This setting changes which test exchange is connected to.
 # 0 is prod-like
@@ -47,17 +47,27 @@ def read_from_exchange(exchange):
 def hello(exchange):
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
 
-def buy(exchange, order_id, symbol, price, size):
-    write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
-
-def sell(exchange, order_id, symbol, price, size):
+def sell(symbol, price, size):
+    order_id = random.randint(1000, 5000000)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "SELL", "price": price, "size": size})
+    print("SOLD", symbol)
+    if not read_from_exchange(exchange)["type"] == "reject":
+        orders.append(order_id)
+
+def buy(symbol, price, size):
+    order_id = random.randint(1000, 5000000)
+    write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
+    print("ORDERED", symbol)
+    if not read_from_exchange(exchange)["type"] == "reject":
+        orders.append(order_id)
 
 def convert(exchange, order_id, symbol, size):
     write_to_exchange(exchange, {"type": "convert", "order_id": order_id, "symbol": symbol, "dir": "BUY", "size": size})
 
 def cancel(exchange, order_id):
     write_to_exchange(exchange, {"type": "cancel", "order_id": order_id})
+
+# ~~~~~============== ALGORITHM CODE ==============~~~~~
 
 def get_info(exchange, buy_dict, sell_dict):
     from_exchange = read_from_exchange(exchange)
@@ -72,6 +82,15 @@ def get_info(exchange, buy_dict, sell_dict):
         if len(from_exchange["sell"]) > 0:
             lowest_offer = from_exchange["sell"][0][0]
             sell_dict[security] = lowest_offer
+
+def penny(buy_dict, sell_dict, orders):
+    for symbol in buy_dict.keys():
+        if symbol != "BOND" :
+            buy(symbol, buy_dict[symbol] + 1, 1)
+
+    for symbol in sell_dict.keys():
+        if symbol != "BOND" :
+            sell(symbol, sell_dict[symbol] - 1, 1)
 
 #10 shares of XLF is a basket of 3 BBOND, 2 GS, 3 MS, 2 WFC
 def arbitrage(exchange, buy_dict, sell_dict, orders):
@@ -93,34 +112,36 @@ def arbitrage(exchange, buy_dict, sell_dict, orders):
             xlf_fair_value = 10 * (buy_dict[security] + sell_dict[security])
 
     if xlf_fair_value > total_basket_value:
-        order_id = random.randint(1000, 1000000)
-        sell(exchange, order_id, "XLF", sell_dict["XLF"] - 1, 50)
-        if not read_from_exchange(exchange)["type"] == "reject":
-            orders.append(order_id)
+        sell("XLF", sell_dict["XLF"] - 1, 50)
 
     if xlf_fair_value < total_basket_value:
-        order_id = random.randint(1000, 1000000)
-        buy(exchange, order_id, "XLF", buy_dict["XLF"] + 1, 50)
-        if not read_from_exchange(exchange)["type"] == "reject":
-            orders.append(order_id)
+        buy("XLF", buy_dict["XLF"] + 1, 50)
+
+
+def get_fair_price(symbol, high, low):
+    return (high+low)/2
 
 # ~~~~~============== MAIN LOOP ==============~~~~~
+exchange = connect()
+orders = []
 
 def main():
-    exchange = connect()
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
     hello_from_exchange = read_from_exchange(exchange)
     print("The exchange replied:", hello_from_exchange, file=sys.stderr)
     
     sell_dict = {}
     buy_dict = {}
-
     orders = []
     count = 0
+
     while(True):
         get_info(exchange, buy_dict, sell_dict)
 
         if count % 100 == 0:
+            buy("BOND", 999, 1)
+            sell("BOND", 1001, 1)
+            #penny(buy_dict, sell_dict, orders)
             arbitrage(exchange, buy_dict, sell_dict, orders)
 
         count += 1
