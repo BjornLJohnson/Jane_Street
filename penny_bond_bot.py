@@ -34,6 +34,7 @@ exchange_hostname = "test-exch-" + team_name if test_mode else prod_exchange_hos
 def connect():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((exchange_hostname, port))
+    s.settimeout(1)
     return s.makefile('rw', 1)
 
 def write_to_exchange(exchange, obj):
@@ -43,14 +44,16 @@ def write_to_exchange(exchange, obj):
 def read_from_exchange(exchange):
     return json.loads(exchange.readline())
 
-def hello(exchange):
+def hello():
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
 
-def buy(exchange, order_id, symbol, price, size):
-    write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
-
-def sell(exchange, order_id, symbol, price, size):
+def sell(symbol, price, size):
+    order_id = random.randint(1000, 5000000)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "SELL", "price": price, "size": size})
+
+def buy(symbol, price, size):
+    order_id = random.randint(1000, 5000000)
+    write_to_exchange(exchange, {"type": "add", "order_id": order_id, "symbol": symbol, "dir": "BUY", "price": price, "size": size})
 
 def convert(exchange, order_id, symbol, size):
     write_to_exchange(exchange, {"type": "convert", "order_id": order_id, "symbol": symbol, "dir": "BUY", "size": size})
@@ -58,7 +61,9 @@ def convert(exchange, order_id, symbol, size):
 def cancel(exchange, order_id):
     write_to_exchange(exchange, {"type": "cancel", "order_id": order_id})
 
-def get_info(exchange, buy_dict, sell_dict):
+# ~~~~~============== Algorithm CODE ==============~~~~~
+
+def get_info(buy_dict, sell_dict):
     from_exchange = read_from_exchange(exchange)
     
     highest_bid = 9999999999
@@ -73,25 +78,26 @@ def get_info(exchange, buy_dict, sell_dict):
             lowest_offer = from_exchange["sell"][0][0]
             sell_dict[security] = lowest_offer
 
-def penny(exchange, buy_dict, sell_dict, orders):
+def penny(buy_dict, sell_dict, orders):
     for bond in buy_dict.keys():
-        order_id = random.randint(1000, 100000)
-        buy(exchange, order_id, bond, buy_dict[bond] + 1, 1)
+        buy(bond, buy_dict[bond] + 1, 1)
         print("ORDERED")
         if not read_from_exchange(exchange)["type"] == "reject":
             orders.append(order_id)
 
     for bond in sell_dict.keys():
-        order_id = random.randint(1000, 100000)
-        sell(exchange, order_id, bond, sell_dict[bond] - 1, 1)
+        sell(bond, sell_dict[bond] - 1, 1)
         print("SOLD")
         if not read_from_exchange(exchange)["type"] == "reject":
             orders.append(order_id)
 
+def get_fair_price(symbol, high, low):
+    return (high+low)/2
+
 # ~~~~~============== MAIN LOOP ==============~~~~~
+exchange = connect()
 
 def main():
-    exchange = connect()
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
     hello_from_exchange = read_from_exchange(exchange)
     print("The exchange replied:", hello_from_exchange, file=sys.stderr)
@@ -101,9 +107,11 @@ def main():
 
     orders = []
     while(True):
-        get_info(exchange, buy_dict, sell_dict)
+        get_info(buy_dict, sell_dict)
 
-        penny(exchange, buy_dict, sell_dict, orders)
+        buy("BOND", 999, 1)
+        sell("BOND", 1001, 1)
+        penny(buy_dict, sell_dict, orders)
         time.sleep(5)
 
         # A common mistake people make is to call write_to_exchange() > 1
