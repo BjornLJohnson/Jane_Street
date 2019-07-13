@@ -11,6 +11,7 @@ import sys
 import socket
 import json
 import random
+import time
 
 # ~~~~~============== CONFIGURATION  ==============~~~~~
 # replace REPLACEME with your team name!
@@ -23,7 +24,7 @@ test_mode = True
 # 0 is prod-like
 # 1 is slower
 # 2 is empty
-test_exchange_index=1
+test_exchange_index=0
 prod_exchange_hostname="production"
 
 port=25000 + (test_exchange_index if test_mode else 0)
@@ -65,10 +66,27 @@ def get_info(exchange, buy_dict, sell_dict):
     if from_exchange["type"] == "book":
         security = from_exchange["symbol"]
         security = from_exchange["symbol"]
-        highest_bid = from_exchange["buy"][0][0]
-        lowest_offer = from_exchange["sell"][0][0]
-        buy_dict[security] = highest_bid
-        sell_dict[security] = lowest_offer
+        if len(from_exchange["buy"]) > 0:
+            highest_bid = from_exchange["buy"][0][0]
+            buy_dict[security] = highest_bid
+        if len(from_exchange["sell"]) > 0:
+            lowest_offer = from_exchange["sell"][0][0]
+            sell_dict[security] = lowest_offer
+
+def penny(exchange, buy_dict, sell_dict, orders):
+    for bond in buy_dict.keys():
+        order_id = random.randint(1000, 100000)
+        buy(exchange, order_id, bond, buy_dict[bond] + 1, 1)
+        print("ORDERED")
+        if not read_from_exchange(exchange)["type"] == "reject":
+            orders.append(order_id)
+
+    for bond in sell_dict.keys():
+        order_id = random.randint(1000, 100000)
+        sell(exchange, order_id, bond, sell_dict[bond] - 1, 1)
+        print("SOLD")
+        if not read_from_exchange(exchange)["type"] == "reject":
+            orders.append(order_id)
 
 # ~~~~~============== MAIN LOOP ==============~~~~~
 
@@ -81,12 +99,13 @@ def main():
     sell_dict = {}
     buy_dict = {}
 
-    count = 0
+    orders = []
     while(True):
         get_info(exchange, buy_dict, sell_dict)
 
-        if count % 500 == 0:
-            
+        penny(exchange, buy_dict, sell_dict, orders)
+        time.sleep(5)
+
         # A common mistake people make is to call write_to_exchange() > 1
         # time for every read_from_exchange() response.
         # Since many write messages generate marketdata, this will cause an
