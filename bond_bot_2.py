@@ -17,7 +17,7 @@ import random
 team_name="BANANAS"
 # This variable dictates whether or not the bot is connecting to the prod
 # or test exchange. Be careful with this switch!
-test_mode = True
+test_mode = False
 
 # This setting changes which test exchange is connected to.
 # 0 is prod-like
@@ -72,18 +72,15 @@ def penny_buy(symbol, high, quantity):
     buy(symbol, high+increment, quantity)
 
 def penny_sell(symbol, low, quantity):
-    sell(symbol, low-decrement, quantity)
+    buy(symbol, low-decrement, quantity)
 
 def get_fair_price(symbol, high, low):
     return (high+low)/2
 
-def penny():
-    
-
 # ~~~~~============== MAIN LOOP ==============~~~~~
 
 def main():
-    
+    exchange = connect()
     write_to_exchange(exchange, {"type": "hello", "team": team_name.upper()})
     hello_from_exchange = read_from_exchange(exchange)
     # A common mistake people make is to call write_to_exchange() > 1
@@ -95,14 +92,23 @@ def main():
     count = 0
 
     while True:
-        if count%1000 == 0 :
+        
+        if count%500==0 :
             buy("BOND", 999, 1)
             sell("BOND", 1001, 1)
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+            print("ordered")
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         count+=1
+        
         response = read_from_exchange(exchange)
         messageType = response["type"]
-        print(messageType,response, file=sys.stderr)
+        print(messageType)
+        
+        if messageType=="ack" or messageType=="error" :
+            print(messageType,response, file=sys.stderr)
+        
         # for symbol in sym_list :
         #     fair = get_fair_price(symbol, high, low)
         #     if fair>prev_fair :

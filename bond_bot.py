@@ -17,7 +17,7 @@ import random
 team_name="BANANAS"
 # This variable dictates whether or not the bot is connecting to the prod
 # or test exchange. Be careful with this switch!
-test_mode = True
+test_mode = False
 
 # This setting changes which test exchange is connected to.
 # 0 is prod-like
@@ -72,13 +72,10 @@ def penny_buy(symbol, high, quantity):
     buy(symbol, high+increment, quantity)
 
 def penny_sell(symbol, low, quantity):
-    sell(symbol, low-decrement, quantity)
+    buy(symbol, low-decrement, quantity)
 
 def get_fair_price(symbol, high, low):
     return (high+low)/2
-
-def penny():
-    
 
 # ~~~~~============== MAIN LOOP ==============~~~~~
 
@@ -98,7 +95,6 @@ def main():
         if count%1000 == 0 :
             buy("BOND", 999, 1)
             sell("BOND", 1001, 1)
-
         count+=1
         response = read_from_exchange(exchange)
         messageType = response["type"]
